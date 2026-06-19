@@ -2,11 +2,9 @@
 Dental Shade Matcher — Streamlit PoC
 """
 
-import io
 import cv2
 import numpy as np
 import streamlit as st
-from PIL import Image
 
 from aruco_utils import detect_aruco, warp_card, sample_swatches, SWATCH_LABELS
 from calibration import fit_ccm, apply_ccm, glare_mask, msq_normalise
@@ -14,27 +12,31 @@ from shade_matching import match_vita, confidence_score
 from vita_shades import VITA_SHADES
 
 # ---------------------------------------------------------------------------
-# Ground-truth L*a*b* for the calibration card swatches (same order as
-# SWATCH_LABELS, i.e. the known values printed on / certified for the card).
-# These must match the physical card used in production.
+# Ground-truth L*a*b* for the 16 Gavan.ai calibration card swatches.
+# Row-major order (TL→TR then next row), matching SWATCH_LABELS in aruco_utils.
+# Values are PoC estimates — replace with the card's certificate in production.
 # ---------------------------------------------------------------------------
 CARD_GROUND_TRUTH_LAB = np.array([
-    [74.0,  0.6, 16.0],   # A1
-    [71.5,  1.5, 18.5],   # A2
-    [68.5,  2.8, 20.5],   # A3
-    [65.0,  3.8, 22.0],   # A3.5
-    [76.5, -0.5, 14.0],   # B1
-    [73.5,  0.5, 17.5],   # B2
-    [70.0,  1.8, 20.0],   # B3
-    [65.5,  2.5, 22.5],   # B4
-    [73.5, -1.0, 10.0],   # C1
-    [69.0, -0.5, 12.5],   # C2
-    [65.0,  0.5, 14.0],   # C3
-    [60.0,  1.0, 15.5],   # C4
-    [72.0,  0.8, 13.0],   # D2
-    [67.0,  1.5, 15.5],   # D3
-    [62.0,  2.0, 17.0],   # D4
-    [61.0,  4.5, 23.5],   # A4 (slot 16)
+    # Row 1 — neutral grey scale (dark → light)
+    [ 16.0,  0.0,   0.0],   # S01  near-black
+    [ 35.0,  0.0,   0.0],   # S02  dark grey
+    [ 52.0,  0.0,   0.0],   # S03  medium grey
+    [ 68.0,  0.0,   0.0],   # S04  light grey
+    # Row 2 — chromatic primaries / saturated
+    [ 38.0, 25.0,  16.0],   # S05  reddish-brown / maroon
+    [ 45.0,  2.0, -44.0],   # S06  bright blue
+    [ 58.0,-28.0,  29.0],   # S07  green
+    [ 27.0,  8.0, -28.0],   # S08  dark navy
+    # Row 3 — secondary / mixed tones
+    [ 52.0, 24.0,  36.0],   # S09  orange-brown
+    [ 65.0, 22.0,  48.0],   # S10  orange / amber
+    [ 55.0, -8.0,  30.0],   # S11  olive / yellow-green
+    [ 62.0, -1.0, -15.0],   # S12  blue-grey
+    # Row 4 — light / skin tones
+    [ 72.0,  8.0,  16.0],   # S13  tan / skin tone
+    [ 78.0,  5.0,  10.0],   # S14  light tan
+    [ 85.0,  1.0,   5.0],   # S15  cream / off-white
+    [ 93.0,  0.0,   2.0],   # S16  near-white
 ], dtype=np.float32)
 
 
@@ -61,18 +63,26 @@ def lab_to_bgr_preview(lab_float: np.ndarray) -> np.ndarray:
 
 
 # ---------------------------------------------------------------------------
-# Tooth region selection (simple centre-crop heuristic when no mask given)
+# Tooth region selection
 # ---------------------------------------------------------------------------
-def extract_tooth_region(bgr: np.ndarray, margin: float = 0.25) -> np.ndarray:
+def extract_tooth_region(bgr: np.ndarray, card_detected: bool = False) -> np.ndarray:
     """
-    Return the central crop of the image as a proxy for the tooth region.
-    In production this would be replaced by a segmentation mask.
+    Heuristic tooth-region crop.
+
+    When a calibration card is present in the lower half of a clinical photo
+    (Gavan.ai layout), the teeth are typically in the upper ~50% of the frame,
+    centred horizontally.  Without a card we fall back to a symmetric centre crop.
+
+    In production this would be replaced by a dedicated segmentation model.
     """
     h, w = bgr.shape[:2]
-    y0 = int(h * margin)
-    y1 = int(h * (1 - margin))
-    x0 = int(w * margin)
-    x1 = int(w * (1 - margin))
+    if card_detected:
+        # Upper 52% of image, middle 65% horizontally
+        y0, y1 = 0,            int(h * 0.52)
+        x0, x1 = int(w * 0.17), int(w * 0.83)
+    else:
+        y0, y1 = int(h * 0.25), int(h * 0.75)
+        x0, x1 = int(w * 0.25), int(w * 0.75)
     return bgr[y0:y1, x0:x1]
 
 
@@ -101,7 +111,7 @@ with st.sidebar:
                                 help="Pixels with L* above this are masked out.")
     show_debug = st.checkbox("Show debug panels", value=True)
     st.markdown("---")
-    st.markdown("**Calibration card:** ArUco IDs 0-3 at corners (DICT_4X4_50)")
+    st.markdown("**Calibration card:** Gavan.ai — 4×4 swatch grid, black square corner fiducials")
 
 # ---------------------------------------------------------------------------
 # Upload
@@ -157,7 +167,7 @@ else:
     )
 
 with st.spinner("Processing tooth region…"):
-    tooth_bgr = extract_tooth_region(bgr)
+    tooth_bgr = extract_tooth_region(bgr, card_detected=calibration_available)
 
     if ccm is not None:
         tooth_lab = apply_ccm(tooth_bgr, ccm)
