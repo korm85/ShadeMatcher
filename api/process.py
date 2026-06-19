@@ -11,7 +11,7 @@ import numpy as np
 from flask import Flask, request, jsonify
 
 # Local siblings (all copied into api/)
-from aruco_utils import detect_aruco, warp_card, sample_swatches
+from aruco_utils import detect_aruco, warp_card, sample_swatches, WARP_W, WARP_H
 from calibration import fit_ccm, apply_ccm, glare_mask, msq_normalise
 from shade_matching import match_vita, confidence_score
 
@@ -103,11 +103,31 @@ def process():
     except ValueError:
         pass
 
+    # Optional manual card region (fractions sent from the canvas selector)
+    manual_card_region = None
+    try:
+        if all(k in request.form for k in ('card_x0','card_y0','card_x1','card_y1')):
+            manual_card_region = {k: float(request.form[k])
+                                  for k in ('card_x0','card_y0','card_x1','card_y1')}
+            manual_card_region = {k.replace('card_',''):v for k,v in manual_card_region.items()}
+    except ValueError:
+        pass
+
     # Card detection & CCM fitting
-    corners, ids = detect_aruco(bgr)
-    warped = warp_card(bgr, corners, ids)
-    card_detected = warped is not None
     ccm, warped_b64 = None, None
+    if manual_card_region is not None:
+        # Use the user-drawn region directly — no ArUco/contour detection needed
+        ch, cw = bgr.shape[:2]
+        r = manual_card_region
+        cx0 = max(0, int(r['x0'] * cw));  cy0 = max(0, int(r['y0'] * ch))
+        cx1 = min(cw, int(r['x1'] * cw)); cy1 = min(ch, int(r['y1'] * ch))
+        card_crop = bgr[cy0:cy1, cx0:cx1]
+        warped = cv2.resize(card_crop, (WARP_W, WARP_H))
+        card_detected = True
+    else:
+        corners, ids = detect_aruco(bgr)
+        warped = warp_card(bgr, corners, ids)
+        card_detected = warped is not None
 
     if card_detected:
         raw = sample_swatches(warped)
