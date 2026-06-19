@@ -3,8 +3,16 @@ Vercel serverless function — dental shade matching pipeline.
 Accepts a multipart POST with an image, returns JSON results + base64 previews.
 """
 
-import os, sys, base64, json
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+import os, sys, base64
+from pathlib import Path
+
+# Absolute path of this file so Vercel Lambda __file__ is always resolved
+_HERE = Path(__file__).resolve().parent
+_ROOT = _HERE.parent
+
+# Make root-level sibling modules importable (calibration, aruco_utils, etc.)
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
 
 import cv2
 import numpy as np
@@ -15,6 +23,10 @@ from calibration import fit_ccm, apply_ccm, glare_mask, msq_normalise
 from shade_matching import match_vita, confidence_score
 
 app = Flask(__name__)
+
+# Read HTML once at startup — path error surfaces immediately rather than at request time
+_HTML_PATH = _ROOT / "public" / "index.html"
+_HTML = _HTML_PATH.read_text(encoding="utf-8")
 
 # ---------------------------------------------------------------------------
 # Gavan.ai calibration card — 16-swatch PoC ground-truth L*a*b*
@@ -158,6 +170,4 @@ def process():
 
 @app.route("/", methods=["GET"])
 def index():
-    html_path = os.path.join(os.path.dirname(__file__), "..", "public", "index.html")
-    with open(html_path) as f:
-        return f.read(), 200, {"Content-Type": "text/html"}
+    return _HTML, 200, {"Content-Type": "text/html; charset=utf-8"}
