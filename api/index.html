@@ -9,10 +9,16 @@
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f8fafc;color:#111;min-height:100vh}
   header{background:#fff;border-bottom:1px solid var(--border);padding:16px 32px;display:flex;align-items:center;gap:12px}
-  header h1{font-size:1.25rem;font-weight:700;color:#111}
+  header h1{font-size:1.25rem;font-weight:700}
   header span{font-size:1.6rem}
   .badge{font-size:.7rem;background:var(--blue-light);color:var(--blue);padding:2px 8px;border-radius:999px;font-weight:600;margin-left:8px}
   main{max-width:1100px;margin:0 auto;padding:32px 24px}
+
+  /* Steps */
+  .steps{display:flex;gap:8px;margin-bottom:24px;font-size:.82rem;font-weight:600}
+  .step{padding:4px 12px;border-radius:999px;background:#e5e7eb;color:#6b7280}
+  .step.active{background:var(--blue);color:#fff}
+  .step.done{background:#dcfce7;color:#14532d}
 
   /* Upload zone */
   .upload-zone{background:#fff;border:2px dashed var(--border);border-radius:16px;padding:48px 32px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;box-shadow:var(--shadow)}
@@ -23,15 +29,26 @@
   .upload-zone p{color:var(--grey);font-size:.9rem}
   .upload-btn{display:inline-block;margin-top:16px;padding:10px 24px;background:var(--blue);color:#fff;border-radius:8px;font-weight:600;font-size:.9rem;cursor:pointer}
 
+  /* Region selector */
+  #selectorPanel{display:none;background:#fff;border:1px solid var(--border);border-radius:16px;padding:20px;box-shadow:var(--shadow);margin-bottom:0}
+  #selectorPanel h3{font-size:1rem;font-weight:700;margin-bottom:6px}
+  #selectorPanel p{font-size:.85rem;color:var(--grey);margin-bottom:14px}
+  .canvas-wrap{position:relative;display:inline-block;max-width:100%;cursor:crosshair;border-radius:8px;overflow:hidden;border:2px solid var(--border)}
+  #imgCanvas{display:block;max-width:100%;max-height:520px}
+  .selector-btns{margin-top:14px;display:flex;gap:10px}
+  .btn{padding:9px 22px;border-radius:8px;font-weight:700;font-size:.9rem;cursor:pointer;border:none}
+  .btn-primary{background:var(--blue);color:#fff}
+  .btn-ghost{background:#f3f4f6;color:#374151;border:1px solid var(--border)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+
   /* Settings bar */
   .settings{display:flex;align-items:center;gap:16px;background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 20px;margin:20px 0;font-size:.9rem}
   .settings label{color:var(--grey);font-weight:500}
   .settings input[type=range]{width:140px;accent-color:var(--blue)}
   .settings span{font-weight:700;color:var(--blue);min-width:28px}
-  #analyzeBtn{margin-left:auto;padding:10px 28px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-weight:700;font-size:.95rem;cursor:pointer;transition:opacity .2s}
+  #analyzeBtn{margin-left:auto;padding:10px 28px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-weight:700;font-size:.95rem;cursor:pointer}
   #analyzeBtn:disabled{opacity:.5;cursor:not-allowed}
 
-  /* Status */
   .status{text-align:center;padding:20px;color:var(--grey);font-size:.95rem;display:none}
   .spinner{display:inline-block;width:20px;height:20px;border:3px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:8px}
   @keyframes spin{to{transform:rotate(360deg)}}
@@ -41,6 +58,7 @@
   .alert{padding:10px 16px;border-radius:8px;margin-bottom:16px;font-size:.9rem;font-weight:500}
   .alert-warn{background:#fef3c7;color:#92400e;border:1px solid #fde68a}
   .alert-ok{background:#dcfce7;color:#14532d;border:1px solid #bbf7d0}
+  .alert-info{background:var(--blue-light);color:#1e3a5f;border:1px solid #bfdbfe}
 
   .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
   .metric{background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px 20px;box-shadow:var(--shadow)}
@@ -55,7 +73,6 @@
   .lab-chip .l{font-size:.75rem;color:var(--grey);font-weight:600;text-transform:uppercase}
   .lab-chip .v{font-size:1.3rem;font-weight:700}
 
-  /* Table */
   .card{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);margin-bottom:24px}
   .card-header{padding:14px 20px;font-weight:700;font-size:.95rem;border-bottom:1px solid var(--border);background:#f9fafb}
   table{width:100%;border-collapse:collapse;font-size:.875rem}
@@ -69,13 +86,12 @@
   .dE-ok{background:#fef3c7;color:#92400e}
   .dE-bad{background:#fee2e2;color:#991b1b}
 
-  /* Images */
   .img-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:24px}
   .img-panel{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
   .img-panel .img-label{padding:10px 14px;font-size:.8rem;font-weight:700;color:var(--grey);background:#f9fafb;border-bottom:1px solid var(--border)}
   .img-panel img{width:100%;display:block;object-fit:cover}
 
-  @media(max-width:700px){.metrics{grid-template-columns:repeat(2,1fr)}.lab-row{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:700px){.metrics{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
@@ -88,6 +104,13 @@
 
 <main>
 
+  <div class="steps">
+    <div class="step active" id="s1">1 · Upload</div>
+    <div class="step" id="s2">2 · Select tooth region</div>
+    <div class="step" id="s3">3 · Analyse</div>
+  </div>
+
+  <!-- Step 1: Upload -->
   <div class="upload-zone" id="dropZone">
     <input type="file" id="fileInput" accept="image/jpeg,image/png"/>
     <div class="upload-icon">📷</div>
@@ -96,12 +119,27 @@
     <label class="upload-btn" for="fileInput">Choose image</label>
   </div>
 
-  <div class="settings">
+  <!-- Step 2: Region selector -->
+  <div id="selectorPanel">
+    <h3>Draw the tooth region</h3>
+    <p>Click and drag a box over the teeth. The selection is highlighted in blue. Drag again to redraw.</p>
+    <div class="canvas-wrap" id="canvasWrap">
+      <canvas id="imgCanvas"></canvas>
+    </div>
+    <div class="selector-btns">
+      <button class="btn btn-primary" id="confirmRegionBtn" disabled>Confirm region &amp; continue →</button>
+      <button class="btn btn-ghost" id="clearRegionBtn">Clear selection</button>
+      <button class="btn btn-ghost" id="skipRegionBtn">Skip — use auto-detect</button>
+    </div>
+  </div>
+
+  <!-- Step 3: Settings + analyse -->
+  <div class="settings" id="settingsBar" style="display:none">
     <label for="glare">Glare L* threshold</label>
     <input type="range" id="glare" min="80" max="100" value="95"
            oninput="document.getElementById('glareVal').textContent=this.value"/>
     <span id="glareVal">95</span>
-    <button id="analyzeBtn" disabled>Analyse</button>
+    <button id="analyzeBtn">Analyse</button>
   </div>
 
   <div class="status" id="status">
@@ -113,31 +151,173 @@
 </main>
 
 <script>
+// ── State ──────────────────────────────────────────────────────────────────
 let selectedFile = null;
+// Tooth region as fractions [0-1] of the ORIGINAL image dimensions
+let toothRegion = null;  // { x0, y0, x1, y1 } or null = auto
 
-const dropZone  = document.getElementById('dropZone');
-const fileInput = document.getElementById('fileInput');
-const analyzeBtn= document.getElementById('analyzeBtn');
-const statusEl  = document.getElementById('status');
-const resultsEl = document.getElementById('results');
+// ── Elements ───────────────────────────────────────────────────────────────
+const dropZone        = document.getElementById('dropZone');
+const fileInput       = document.getElementById('fileInput');
+const selectorPanel   = document.getElementById('selectorPanel');
+const settingsBar     = document.getElementById('settingsBar');
+const analyzeBtn      = document.getElementById('analyzeBtn');
+const statusEl        = document.getElementById('status');
+const resultsEl       = document.getElementById('results');
+const canvas          = document.getElementById('imgCanvas');
+const ctx             = canvas.getContext('2d');
+const confirmBtn      = document.getElementById('confirmRegionBtn');
+const clearBtn        = document.getElementById('clearRegionBtn');
+const skipBtn         = document.getElementById('skipRegionBtn');
 
-fileInput.addEventListener('change', e => {
-  if (e.target.files[0]) selectFile(e.target.files[0]);
-});
+// ── Upload ─────────────────────────────────────────────────────────────────
+fileInput.addEventListener('change', e => { if (e.target.files[0]) pickFile(e.target.files[0]); });
 dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
 dropZone.addEventListener('drop', e => {
   e.preventDefault(); dropZone.classList.remove('drag');
-  if (e.dataTransfer.files[0]) selectFile(e.dataTransfer.files[0]);
+  if (e.dataTransfer.files[0]) pickFile(e.dataTransfer.files[0]);
 });
 
-function selectFile(f) {
+let naturalW = 0, naturalH = 0;
+const img = new Image();
+
+function pickFile(f) {
   selectedFile = f;
+  toothRegion  = null;
   dropZone.querySelector('h2').textContent = f.name;
-  dropZone.querySelector('p').textContent = (f.size / 1024).toFixed(0) + ' KB';
-  analyzeBtn.disabled = false;
+  dropZone.querySelector('p').textContent  = (f.size/1024).toFixed(0) + ' KB';
+
+  const url = URL.createObjectURL(f);
+  img.onload = () => {
+    naturalW = img.naturalWidth;
+    naturalH = img.naturalHeight;
+    // Size canvas to fit the image while respecting screen width
+    const maxW = Math.min(naturalW, document.querySelector('main').clientWidth - 40);
+    const scale = maxW / naturalW;
+    canvas.width  = maxW;
+    canvas.height = naturalH * scale;
+    drawImage();
+    selectorPanel.style.display = 'block';
+    settingsBar.style.display   = 'none';
+    confirmBtn.disabled = true;
+    setStep(2);
+    selectorPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  img.src = url;
 }
 
+function drawImage() {
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+}
+
+function drawSelection() {
+  if (!drag.rect) return;
+  const {x, y, w, h} = drag.rect;
+  ctx.save();
+  ctx.strokeStyle = '#1a6ee6';
+  ctx.lineWidth   = 2.5;
+  ctx.setLineDash([]);
+  ctx.fillStyle   = 'rgba(26,110,230,0.12)';
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeRect(x, y, w, h);
+  // Corner handles
+  ctx.fillStyle = '#1a6ee6';
+  [[x,y],[x+w,y],[x,y+h],[x+w,y+h]].forEach(([cx,cy]) => {
+    ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI*2); ctx.fill();
+  });
+  ctx.restore();
+}
+
+// ── Rubber-band drag ───────────────────────────────────────────────────────
+const drag = { active: false, startX: 0, startY: 0, rect: null };
+
+function canvasPos(e) {
+  const r = canvas.getBoundingClientRect();
+  const src = e.touches ? e.touches[0] : e;
+  return { x: src.clientX - r.left, y: src.clientY - r.top };
+}
+
+function startDrag(e) {
+  e.preventDefault();
+  const {x, y} = canvasPos(e);
+  drag.active = true;
+  drag.startX = x;
+  drag.startY = y;
+  drag.rect   = null;
+  confirmBtn.disabled = true;
+}
+
+function moveDrag(e) {
+  if (!drag.active) return;
+  e.preventDefault();
+  const {x, y} = canvasPos(e);
+  const rx = Math.min(drag.startX, x);
+  const ry = Math.min(drag.startY, y);
+  const rw = Math.abs(x - drag.startX);
+  const rh = Math.abs(y - drag.startY);
+  drag.rect = { x: rx, y: ry, w: rw, h: rh };
+  drawImage();
+  drawSelection();
+}
+
+function endDrag(e) {
+  if (!drag.active) return;
+  drag.active = false;
+  if (drag.rect && drag.rect.w > 10 && drag.rect.h > 10) {
+    confirmBtn.disabled = false;
+  }
+}
+
+canvas.addEventListener('mousedown',  startDrag);
+canvas.addEventListener('mousemove',  moveDrag);
+canvas.addEventListener('mouseup',    endDrag);
+canvas.addEventListener('mouseleave', endDrag);
+canvas.addEventListener('touchstart', startDrag, { passive: false });
+canvas.addEventListener('touchmove',  moveDrag,  { passive: false });
+canvas.addEventListener('touchend',   endDrag);
+
+// ── Selector buttons ───────────────────────────────────────────────────────
+confirmBtn.addEventListener('click', () => {
+  if (!drag.rect) return;
+  // Convert canvas px → fractions of original image
+  const scaleX = naturalW / canvas.width;
+  const scaleY = naturalH / canvas.height;
+  const {x, y, w, h} = drag.rect;
+  toothRegion = {
+    x0: x * scaleX / naturalW,
+    y0: y * scaleY / naturalH,
+    x1: (x + w) * scaleX / naturalW,
+    y1: (y + h) * scaleY / naturalH,
+  };
+  showSettingsBar('Region selected — ready to analyse');
+});
+
+clearBtn.addEventListener('click', () => {
+  drag.rect = null;
+  drawImage();
+  confirmBtn.disabled = true;
+});
+
+skipBtn.addEventListener('click', () => {
+  toothRegion = null;
+  showSettingsBar('No region selected — auto-detect will be used');
+});
+
+function showSettingsBar(msg) {
+  selectorPanel.style.display = 'none';
+  settingsBar.style.display   = 'flex';
+  setStep(3);
+  // Brief info banner
+  const banner = document.createElement('div');
+  banner.className = 'alert alert-info';
+  banner.style.marginBottom = '0';
+  banner.textContent = msg;
+  settingsBar.insertAdjacentElement('afterend', banner);
+  setTimeout(() => banner.remove(), 4000);
+}
+
+// ── Analyse ────────────────────────────────────────────────────────────────
 analyzeBtn.addEventListener('click', async () => {
   if (!selectedFile) return;
   analyzeBtn.disabled = true;
@@ -147,6 +327,12 @@ analyzeBtn.addEventListener('click', async () => {
   const fd = new FormData();
   fd.append('image', selectedFile);
   fd.append('glare_threshold', document.getElementById('glare').value);
+  if (toothRegion) {
+    fd.append('tooth_x0', toothRegion.x0);
+    fd.append('tooth_y0', toothRegion.y0);
+    fd.append('tooth_x1', toothRegion.x1);
+    fd.append('tooth_y1', toothRegion.y1);
+  }
 
   try {
     const resp = await fetch('/api/process', { method: 'POST', body: fd });
@@ -161,20 +347,35 @@ analyzeBtn.addEventListener('click', async () => {
   }
 });
 
+// ── Steps ──────────────────────────────────────────────────────────────────
+function setStep(n) {
+  [1,2,3].forEach(i => {
+    const el = document.getElementById('s'+i);
+    el.className = 'step' + (i < n ? ' done' : i === n ? ' active' : '');
+  });
+}
+
+// ── Error ──────────────────────────────────────────────────────────────────
 function showError(msg) {
   resultsEl.innerHTML = `<div class="alert alert-warn">⚠️ ${msg}</div>`;
   resultsEl.style.display = 'block';
 }
 
+// ── Render results ─────────────────────────────────────────────────────────
 function dEChip(v) {
   const cls = v < 2 ? 'dE-good' : v < 4 ? 'dE-ok' : 'dE-bad';
   return `<span class="dE-chip ${cls}">ΔE₀₀ ${v.toFixed(2)}</span>`;
 }
 
 function render(d) {
+  setStep(3);
   const cardAlert = d.card_detected
     ? `<div class="alert alert-ok">✅ Gavan.ai calibration card detected — RPCC matrix applied</div>`
     : `<div class="alert alert-warn">⚠️ No calibration card detected — using fallback sRGB→L*a*b* conversion</div>`;
+
+  const regionNote = d.manual_region
+    ? `<div class="alert alert-info">📐 Manual tooth region used (${d.manual_region})</div>`
+    : '';
 
   const top5rows = d.top5.map((r, i) =>
     `<tr class="${i===0?'rank1':''}">
@@ -189,7 +390,7 @@ function render(d) {
   const panels = [
     ['Original', imgs.original],
     imgs.warped_card ? ['Calibration card (warped)', imgs.warped_card] : null,
-    ['Tooth — shading normalised', imgs.tooth_norm],
+    ['Tooth region (shading-normalised)', imgs.tooth_norm],
     ['Glare overlay (red = excluded)', imgs.glare_overlay],
   ].filter(Boolean).map(([label, b64]) =>
     `<div class="img-panel">
@@ -199,8 +400,7 @@ function render(d) {
   ).join('');
 
   resultsEl.innerHTML = `
-    ${cardAlert}
-
+    ${cardAlert}${regionNote}
     <div class="metrics">
       <div class="metric highlight">
         <div class="label">Best VITA Shade</div>
@@ -223,13 +423,11 @@ function render(d) {
         <div class="sub">non-glare used</div>
       </div>
     </div>
-
     <div class="lab-row">
       <div class="lab-chip"><div class="l">L* Lightness</div><div class="v">${d.tooth_lab.L.toFixed(1)}</div></div>
       <div class="lab-chip"><div class="l">a* Red–Green</div><div class="v">${d.tooth_lab.a.toFixed(2)}</div></div>
       <div class="lab-chip"><div class="l">b* Blue–Yellow</div><div class="v">${d.tooth_lab.b.toFixed(2)}</div></div>
     </div>
-
     <div class="card">
       <div class="card-header">Top 5 VITA Classical matches</div>
       <table>
@@ -237,7 +435,6 @@ function render(d) {
         <tbody>${top5rows}</tbody>
       </table>
     </div>
-
     <div class="img-grid">${panels}</div>
   `;
   resultsEl.style.display = 'block';

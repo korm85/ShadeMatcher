@@ -55,15 +55,22 @@ def _lab_to_bgr(lab: np.ndarray) -> np.ndarray:
     return cv2.cvtColor(np.stack([L, a, b], -1).astype(np.uint8), cv2.COLOR_LAB2BGR)
 
 
-def extract_tooth_region(bgr, card_detected):
+def extract_tooth_region(bgr, card_detected, region=None):
     h, w = bgr.shape[:2]
+    if region:
+        # Manual selection: region is fractions [0-1] of original image
+        x0 = max(0, int(region['x0'] * w))
+        y0 = max(0, int(region['y0'] * h))
+        x1 = min(w, int(region['x1'] * w))
+        y1 = min(h, int(region['y1'] * h))
+        return bgr[y0:y1, x0:x1], True
     if card_detected:
         y0, y1 = 0,             int(h * 0.52)
         x0, x1 = int(w * 0.17), int(w * 0.83)
     else:
         y0, y1 = int(h * 0.25), int(h * 0.75)
         x0, x1 = int(w * 0.25), int(w * 0.75)
-    return bgr[y0:y1, x0:x1]
+    return bgr[y0:y1, x0:x1], False
 
 
 @app.route("/api/process", methods=["POST"])
@@ -85,6 +92,17 @@ def process():
 
     glare_threshold = float(request.form.get("glare_threshold", 95))
 
+    # Optional manual tooth region (fractions sent from the canvas selector)
+    manual_region = None
+    try:
+        if all(k in request.form for k in ('tooth_x0','tooth_y0','tooth_x1','tooth_y1')):
+            manual_region = {k: float(request.form[k])
+                             for k in ('tooth_x0','tooth_y0','tooth_x1','tooth_y1')}
+            # Rekey to x0/y0/x1/y1
+            manual_region = {k.replace('tooth_',''):v for k,v in manual_region.items()}
+    except ValueError:
+        pass
+
     # Card detection & CCM fitting
     corners, ids = detect_aruco(bgr)
     warped = warp_card(bgr, corners, ids)
@@ -97,7 +115,7 @@ def process():
         warped_b64 = _bgr_to_b64(warped)
 
     # Tooth region
-    tooth_bgr = extract_tooth_region(bgr, card_detected)
+    tooth_bgr, used_manual = extract_tooth_region(bgr, card_detected, manual_region)
 
     if ccm is not None:
         tooth_lab = apply_ccm(tooth_bgr, ccm)
@@ -130,8 +148,15 @@ def process():
 
     disp = cv2.resize(bgr, (640, int(bgr.shape[0] * 640 / bgr.shape[1])))
 
+    region_label = None
+    if used_manual and manual_region:
+        r = manual_region
+        region_label = (f"x {r['x0']:.2f}–{r['x1']:.2f} · "
+                        f"y {r['y0']:.2f}–{r['y1']:.2f}")
+
     return jsonify({
         "card_detected": card_detected,
+        "manual_region": region_label,
         "tooth_lab": {"L": round(avg_L, 2), "a": round(avg_a, 2), "b": round(avg_b, 2)},
         "best_shade": best["shade"],
         "best_group": best["group_name"],
