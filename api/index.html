@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Dental Shade Matcher</title>
+<style>
+  :root{--blue:#1a6ee6;--blue-light:#e8f0fd;--green:#16a34a;--red:#dc2626;--grey:#6b7280;--border:#e5e7eb;--shadow:0 2px 12px rgba(0,0,0,.08)}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f8fafc;color:#111;min-height:100vh}
+  header{background:#fff;border-bottom:1px solid var(--border);padding:16px 32px;display:flex;align-items:center;gap:12px}
+  header h1{font-size:1.25rem;font-weight:700;color:#111}
+  header span{font-size:1.6rem}
+  .badge{font-size:.7rem;background:var(--blue-light);color:var(--blue);padding:2px 8px;border-radius:999px;font-weight:600;margin-left:8px}
+  main{max-width:1100px;margin:0 auto;padding:32px 24px}
+
+  /* Upload zone */
+  .upload-zone{background:#fff;border:2px dashed var(--border);border-radius:16px;padding:48px 32px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;box-shadow:var(--shadow)}
+  .upload-zone:hover,.upload-zone.drag{border-color:var(--blue);background:var(--blue-light)}
+  .upload-zone input{display:none}
+  .upload-icon{font-size:3rem;margin-bottom:12px}
+  .upload-zone h2{font-size:1.1rem;font-weight:600;margin-bottom:6px}
+  .upload-zone p{color:var(--grey);font-size:.9rem}
+  .upload-btn{display:inline-block;margin-top:16px;padding:10px 24px;background:var(--blue);color:#fff;border-radius:8px;font-weight:600;font-size:.9rem;cursor:pointer}
+
+  /* Settings bar */
+  .settings{display:flex;align-items:center;gap:16px;background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 20px;margin:20px 0;font-size:.9rem}
+  .settings label{color:var(--grey);font-weight:500}
+  .settings input[type=range]{width:140px;accent-color:var(--blue)}
+  .settings span{font-weight:700;color:var(--blue);min-width:28px}
+  #analyzeBtn{margin-left:auto;padding:10px 28px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-weight:700;font-size:.95rem;cursor:pointer;transition:opacity .2s}
+  #analyzeBtn:disabled{opacity:.5;cursor:not-allowed}
+
+  /* Status */
+  .status{text-align:center;padding:20px;color:var(--grey);font-size:.95rem;display:none}
+  .spinner{display:inline-block;width:20px;height:20px;border:3px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:8px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* Results */
+  #results{display:none}
+  .alert{padding:10px 16px;border-radius:8px;margin-bottom:16px;font-size:.9rem;font-weight:500}
+  .alert-warn{background:#fef3c7;color:#92400e;border:1px solid #fde68a}
+  .alert-ok{background:#dcfce7;color:#14532d;border:1px solid #bbf7d0}
+
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+  .metric{background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px 20px;box-shadow:var(--shadow)}
+  .metric .label{font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--grey);font-weight:600;margin-bottom:4px}
+  .metric .value{font-size:1.6rem;font-weight:800;color:#111}
+  .metric .sub{font-size:.8rem;color:var(--grey);margin-top:2px}
+  .metric.highlight{border-color:var(--blue);background:var(--blue-light)}
+  .metric.highlight .value{color:var(--blue)}
+
+  .lab-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px}
+  .lab-chip{background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px 18px;text-align:center;box-shadow:var(--shadow)}
+  .lab-chip .l{font-size:.75rem;color:var(--grey);font-weight:600;text-transform:uppercase}
+  .lab-chip .v{font-size:1.3rem;font-weight:700}
+
+  /* Table */
+  .card{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);margin-bottom:24px}
+  .card-header{padding:14px 20px;font-weight:700;font-size:.95rem;border-bottom:1px solid var(--border);background:#f9fafb}
+  table{width:100%;border-collapse:collapse;font-size:.875rem}
+  th{background:#f9fafb;padding:10px 16px;text-align:left;font-weight:600;color:var(--grey);font-size:.8rem;text-transform:uppercase;letter-spacing:.05em}
+  td{padding:10px 16px;border-top:1px solid var(--border)}
+  tr:first-child td{border-top:none}
+  tr:hover td{background:#f9fafb}
+  .rank1 td{background:#eff6ff}
+  .dE-chip{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.8rem;font-weight:700}
+  .dE-good{background:#dcfce7;color:#14532d}
+  .dE-ok{background:#fef3c7;color:#92400e}
+  .dE-bad{background:#fee2e2;color:#991b1b}
+
+  /* Images */
+  .img-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:24px}
+  .img-panel{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
+  .img-panel .img-label{padding:10px 14px;font-size:.8rem;font-weight:700;color:var(--grey);background:#f9fafb;border-bottom:1px solid var(--border)}
+  .img-panel img{width:100%;display:block;object-fit:cover}
+
+  @media(max-width:700px){.metrics{grid-template-columns:repeat(2,1fr)}.lab-row{grid-template-columns:repeat(3,1fr)}}
+</style>
+</head>
+<body>
+
+<header>
+  <span>🦷</span>
+  <h1>Dental Shade Matcher</h1>
+  <span class="badge">PoC</span>
+</header>
+
+<main>
+
+  <div class="upload-zone" id="dropZone">
+    <input type="file" id="fileInput" accept="image/jpeg,image/png"/>
+    <div class="upload-icon">📷</div>
+    <h2>Upload clinical photograph</h2>
+    <p>Include the Gavan.ai calibration card in the shot for accurate results</p>
+    <label class="upload-btn" for="fileInput">Choose image</label>
+  </div>
+
+  <div class="settings">
+    <label for="glare">Glare L* threshold</label>
+    <input type="range" id="glare" min="80" max="100" value="95"
+           oninput="document.getElementById('glareVal').textContent=this.value"/>
+    <span id="glareVal">95</span>
+    <button id="analyzeBtn" disabled>Analyse</button>
+  </div>
+
+  <div class="status" id="status">
+    <span class="spinner"></span>Running colour calibration pipeline…
+  </div>
+
+  <div id="results"></div>
+
+</main>
+
+<script>
+let selectedFile = null;
+
+const dropZone  = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const analyzeBtn= document.getElementById('analyzeBtn');
+const statusEl  = document.getElementById('status');
+const resultsEl = document.getElementById('results');
+
+fileInput.addEventListener('change', e => {
+  if (e.target.files[0]) selectFile(e.target.files[0]);
+});
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag');
+  if (e.dataTransfer.files[0]) selectFile(e.dataTransfer.files[0]);
+});
+
+function selectFile(f) {
+  selectedFile = f;
+  dropZone.querySelector('h2').textContent = f.name;
+  dropZone.querySelector('p').textContent = (f.size / 1024).toFixed(0) + ' KB';
+  analyzeBtn.disabled = false;
+}
+
+analyzeBtn.addEventListener('click', async () => {
+  if (!selectedFile) return;
+  analyzeBtn.disabled = true;
+  statusEl.style.display = 'block';
+  resultsEl.style.display = 'none';
+
+  const fd = new FormData();
+  fd.append('image', selectedFile);
+  fd.append('glare_threshold', document.getElementById('glare').value);
+
+  try {
+    const resp = await fetch('/api/process', { method: 'POST', body: fd });
+    const data = await resp.json();
+    if (!resp.ok) { showError(data.error || 'Processing failed'); return; }
+    render(data);
+  } catch(err) {
+    showError('Network error: ' + err.message);
+  } finally {
+    statusEl.style.display = 'none';
+    analyzeBtn.disabled = false;
+  }
+});
+
+function showError(msg) {
+  resultsEl.innerHTML = `<div class="alert alert-warn">⚠️ ${msg}</div>`;
+  resultsEl.style.display = 'block';
+}
+
+function dEChip(v) {
+  const cls = v < 2 ? 'dE-good' : v < 4 ? 'dE-ok' : 'dE-bad';
+  return `<span class="dE-chip ${cls}">ΔE₀₀ ${v.toFixed(2)}</span>`;
+}
+
+function render(d) {
+  const cardAlert = d.card_detected
+    ? `<div class="alert alert-ok">✅ Gavan.ai calibration card detected — RPCC matrix applied</div>`
+    : `<div class="alert alert-warn">⚠️ No calibration card detected — using fallback sRGB→L*a*b* conversion</div>`;
+
+  const top5rows = d.top5.map((r, i) =>
+    `<tr class="${i===0?'rank1':''}">
+      <td>${i===0?'🥇':i+1}</td>
+      <td><strong>${r.shade}</strong></td>
+      <td>${r.group}</td>
+      <td>${dEChip(r.dE00)}</td>
+    </tr>`
+  ).join('');
+
+  const imgs = d.images;
+  const panels = [
+    ['Original', imgs.original],
+    imgs.warped_card ? ['Calibration card (warped)', imgs.warped_card] : null,
+    ['Tooth — shading normalised', imgs.tooth_norm],
+    ['Glare overlay (red = excluded)', imgs.glare_overlay],
+  ].filter(Boolean).map(([label, b64]) =>
+    `<div class="img-panel">
+      <div class="img-label">${label}</div>
+      <img src="data:image/jpeg;base64,${b64}" loading="lazy"/>
+    </div>`
+  ).join('');
+
+  resultsEl.innerHTML = `
+    ${cardAlert}
+
+    <div class="metrics">
+      <div class="metric highlight">
+        <div class="label">Best VITA Shade</div>
+        <div class="value">${d.best_shade}</div>
+        <div class="sub">${d.best_group}</div>
+      </div>
+      <div class="metric">
+        <div class="label">ΔE₀₀ Distance</div>
+        <div class="value">${d.dE00.toFixed(2)}</div>
+        <div class="sub">lower is closer</div>
+      </div>
+      <div class="metric">
+        <div class="label">Confidence</div>
+        <div class="value" style="font-size:1.2rem">${d.confidence}</div>
+        <div class="sub">${d.confidence_desc}</div>
+      </div>
+      <div class="metric">
+        <div class="label">Valid pixels</div>
+        <div class="value">${d.valid_pixels_pct}%</div>
+        <div class="sub">non-glare used</div>
+      </div>
+    </div>
+
+    <div class="lab-row">
+      <div class="lab-chip"><div class="l">L* Lightness</div><div class="v">${d.tooth_lab.L.toFixed(1)}</div></div>
+      <div class="lab-chip"><div class="l">a* Red–Green</div><div class="v">${d.tooth_lab.a.toFixed(2)}</div></div>
+      <div class="lab-chip"><div class="l">b* Blue–Yellow</div><div class="v">${d.tooth_lab.b.toFixed(2)}</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">Top 5 VITA Classical matches</div>
+      <table>
+        <thead><tr><th>#</th><th>Shade</th><th>Group</th><th>Distance</th></tr></thead>
+        <tbody>${top5rows}</tbody>
+      </table>
+    </div>
+
+    <div class="img-grid">${panels}</div>
+  `;
+  resultsEl.style.display = 'block';
+  resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+</script>
+</body>
+</html>

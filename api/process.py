@@ -1,32 +1,24 @@
 """
 Vercel serverless function — dental shade matching pipeline.
-Accepts a multipart POST with an image, returns JSON results + base64 previews.
+All dependencies are co-located in api/ so Vercel bundles them reliably.
 """
 
-import os, sys, base64
+import base64
 from pathlib import Path
-
-# Absolute path of this file so Vercel Lambda __file__ is always resolved
-_HERE = Path(__file__).resolve().parent
-_ROOT = _HERE.parent
-
-# Make root-level sibling modules importable (calibration, aruco_utils, etc.)
-if str(_ROOT) not in sys.path:
-    sys.path.insert(0, str(_ROOT))
 
 import cv2
 import numpy as np
 from flask import Flask, request, jsonify
 
+# Local siblings (all copied into api/)
 from aruco_utils import detect_aruco, warp_card, sample_swatches
 from calibration import fit_ccm, apply_ccm, glare_mask, msq_normalise
 from shade_matching import match_vita, confidence_score
 
 app = Flask(__name__)
 
-# Read HTML once at startup — path error surfaces immediately rather than at request time
-_HTML_PATH = _ROOT / "public" / "index.html"
-_HTML = _HTML_PATH.read_text(encoding="utf-8")
+# HTML is a sibling file — guaranteed to exist in the same directory
+_HTML = (Path(__file__).parent / "index.html").read_text(encoding="utf-8")
 
 # ---------------------------------------------------------------------------
 # Gavan.ai calibration card — 16-swatch PoC ground-truth L*a*b*
@@ -66,7 +58,7 @@ def _lab_to_bgr(lab: np.ndarray) -> np.ndarray:
 def extract_tooth_region(bgr, card_detected):
     h, w = bgr.shape[:2]
     if card_detected:
-        y0, y1 = 0,            int(h * 0.52)
+        y0, y1 = 0,             int(h * 0.52)
         x0, x1 = int(w * 0.17), int(w * 0.83)
     else:
         y0, y1 = int(h * 0.25), int(h * 0.75)
@@ -85,43 +77,40 @@ def process():
     if bgr is None:
         return jsonify({"error": "Could not decode image"}), 400
 
-    # Downscale large images for speed (serverless timeout)
-    max_dim = 1600
+    # Downscale for serverless timeout safety
     h, w = bgr.shape[:2]
-    if max(h, w) > max_dim:
-        scale = max_dim / max(h, w)
+    if max(h, w) > 1600:
+        scale = 1600 / max(h, w)
         bgr = cv2.resize(bgr, (int(w * scale), int(h * scale)))
 
     glare_threshold = float(request.form.get("glare_threshold", 95))
 
-    # --- Card detection & CCM fitting ---
+    # Card detection & CCM fitting
     corners, ids = detect_aruco(bgr)
     warped = warp_card(bgr, corners, ids)
     card_detected = warped is not None
-    ccm = None
-    warped_b64 = None
+    ccm, warped_b64 = None, None
 
     if card_detected:
         raw = sample_swatches(warped)
-        rgb_norm = raw[:, ::-1] / 255.0
-        ccm = fit_ccm(rgb_norm, CARD_GT_LAB)
+        ccm = fit_ccm(raw[:, ::-1] / 255.0, CARD_GT_LAB)
         warped_b64 = _bgr_to_b64(warped)
 
-    # --- Tooth region ---
+    # Tooth region
     tooth_bgr = extract_tooth_region(bgr, card_detected)
 
     if ccm is not None:
         tooth_lab = apply_ccm(tooth_bgr, ccm)
     else:
         u8 = cv2.cvtColor(tooth_bgr, cv2.COLOR_BGR2LAB)
-        L = u8[..., 0].astype(np.float32) * (100.0 / 255.0)
-        a = u8[..., 1].astype(np.float32) - 128.0
-        b = u8[..., 2].astype(np.float32) - 128.0
-        tooth_lab = np.stack([L, a, b], -1)
+        tooth_lab = np.stack([
+            u8[..., 0].astype(np.float32) * (100.0 / 255.0),
+            u8[..., 1].astype(np.float32) - 128.0,
+            u8[..., 2].astype(np.float32) - 128.0,
+        ], -1)
 
     valid = glare_mask(tooth_lab, glare_threshold)
-    n_valid = int(valid.sum())
-    n_total = int(valid.size)
+    n_valid, n_total = int(valid.sum()), int(valid.size)
 
     if n_valid == 0:
         return jsonify({"error": "All pixels masked as glare — lower threshold"}), 422
@@ -131,20 +120,15 @@ def process():
     avg_a = float(tooth_norm[..., 1][valid].mean())
     avg_b = float(tooth_norm[..., 2][valid].mean())
 
-    # --- Shade matching ---
     rankings = match_vita(avg_L, avg_a, avg_b)
     best = rankings[0]
     conf_label, conf_desc = confidence_score(best["dE00"])
 
-    # --- Preview images ---
     tooth_preview = _bgr_to_b64(_lab_to_bgr(tooth_norm))
     glare_overlay = tooth_bgr.copy()
     glare_overlay[~valid] = [0, 0, 255]
-    glare_b64 = _bgr_to_b64(glare_overlay)
 
-    # Resize original for display
-    disp_bgr = cv2.resize(bgr, (640, int(bgr.shape[0] * 640 / bgr.shape[1])))
-    original_b64 = _bgr_to_b64(disp_bgr)
+    disp = cv2.resize(bgr, (640, int(bgr.shape[0] * 640 / bgr.shape[1])))
 
     return jsonify({
         "card_detected": card_detected,
@@ -160,10 +144,10 @@ def process():
             for r in rankings[:5]
         ],
         "images": {
-            "original": original_b64,
+            "original": _bgr_to_b64(disp),
             "warped_card": warped_b64,
             "tooth_norm": tooth_preview,
-            "glare_overlay": glare_b64,
+            "glare_overlay": _bgr_to_b64(glare_overlay),
         },
     })
 
