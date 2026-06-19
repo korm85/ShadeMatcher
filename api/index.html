@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Dental Shade Matcher</title>
+<style>
+  :root{--blue:#1a6ee6;--blue-light:#e8f0fd;--grey:#6b7280;--border:#e5e7eb;--shadow:0 2px 12px rgba(0,0,0,.08)}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f8fafc;color:#111;min-height:100vh}
+  header{background:#fff;border-bottom:1px solid var(--border);padding:16px 32px;display:flex;align-items:center;gap:12px}
+  header h1{font-size:1.25rem;font-weight:700}
+  .badge{font-size:.7rem;background:var(--blue-light);color:var(--blue);padding:2px 8px;border-radius:999px;font-weight:600;margin-left:8px}
+  main{max-width:1060px;margin:0 auto;padding:28px 20px}
+
+  .steps{display:flex;gap:8px;margin-bottom:20px;font-size:.8rem;font-weight:600;flex-wrap:wrap}
+  .step{padding:4px 12px;border-radius:999px;background:#e5e7eb;color:#6b7280}
+  .step.active{background:var(--blue);color:#fff}
+  .step.done{background:#dcfce7;color:#14532d}
+
+  /* Upload */
+  .upload-zone{background:#fff;border:2px dashed var(--border);border-radius:16px;padding:40px 28px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;box-shadow:var(--shadow)}
+  .upload-zone:hover,.upload-zone.drag{border-color:var(--blue);background:var(--blue-light)}
+  .upload-zone input{display:none}
+  .upload-icon{font-size:2.8rem;margin-bottom:10px}
+  .upload-zone h2{font-size:1rem;font-weight:600;margin-bottom:4px}
+  .upload-zone p{color:var(--grey);font-size:.85rem}
+  .upload-btn{display:inline-block;margin-top:14px;padding:9px 22px;background:var(--blue);color:#fff;border-radius:8px;font-weight:600;font-size:.875rem;cursor:pointer}
+
+  /* Selector panel */
+  #selectorPanel{display:none;background:#fff;border:1px solid var(--border);border-radius:14px;padding:18px;box-shadow:var(--shadow)}
+  #selectorTitle{font-size:.95rem;font-weight:700;margin-bottom:4px}
+  #selectorHint{font-size:.82rem;color:var(--grey);margin-bottom:12px}
+  .canvas-outer{position:relative;line-height:0}
+  canvas{display:block;cursor:crosshair;border-radius:6px;border:1.5px solid var(--border);/* NO max-height/max-width here — sized purely by JS */}
+  .selector-btns{margin-top:12px;display:flex;gap:10px;flex-wrap:wrap}
+  .btn{padding:8px 20px;border-radius:8px;font-weight:700;font-size:.875rem;cursor:pointer;border:none}
+  .btn-primary{background:var(--blue);color:#fff}
+  .btn-ghost{background:#f3f4f6;color:#374151;border:1px solid var(--border)}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+
+  /* Settings */
+  .settings{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid var(--border);border-radius:10px;padding:11px 18px;margin:18px 0;font-size:.875rem;flex-wrap:wrap}
+  .settings label{color:var(--grey);font-weight:500}
+  .settings input[type=range]{width:130px;accent-color:var(--blue)}
+  .settings .sv{font-weight:700;color:var(--blue);min-width:26px}
+  #analyzeBtn{margin-left:auto;padding:9px 26px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-weight:700;font-size:.9rem;cursor:pointer}
+  #analyzeBtn:disabled{opacity:.45;cursor:not-allowed}
+
+  .status{text-align:center;padding:18px;color:var(--grey);font-size:.9rem;display:none}
+  .spinner{display:inline-block;width:18px;height:18px;border:3px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:7px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  #results{display:none}
+  .alert{padding:9px 14px;border-radius:8px;margin-bottom:14px;font-size:.875rem;font-weight:500}
+  .alert-warn{background:#fef3c7;color:#92400e;border:1px solid #fde68a}
+  .alert-ok{background:#dcfce7;color:#14532d;border:1px solid #bbf7d0}
+  .alert-info{background:var(--blue-light);color:#1e3a5f;border:1px solid #bfdbfe}
+
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+  .metric{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow)}
+  .metric .lbl{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--grey);font-weight:600;margin-bottom:3px}
+  .metric .val{font-size:1.55rem;font-weight:800}
+  .metric .sub{font-size:.76rem;color:var(--grey);margin-top:2px}
+  .metric.hi{border-color:var(--blue);background:var(--blue-light)}
+  .metric.hi .val{color:var(--blue)}
+
+  .lab-row{display:grid;grid-template-columns:repeat(3,1fr);gap:11px;margin-bottom:20px}
+  .lab-chip{background:#fff;border:1px solid var(--border);border-radius:10px;padding:13px 16px;text-align:center;box-shadow:var(--shadow)}
+  .lab-chip .l{font-size:.72rem;color:var(--grey);font-weight:600;text-transform:uppercase}
+  .lab-chip .v{font-size:1.25rem;font-weight:700}
+
+  .card{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);margin-bottom:20px}
+  .card-header{padding:12px 18px;font-weight:700;font-size:.9rem;border-bottom:1px solid var(--border);background:#f9fafb}
+  table{width:100%;border-collapse:collapse;font-size:.85rem}
+  th{background:#f9fafb;padding:9px 14px;text-align:left;font-weight:600;color:var(--grey);font-size:.76rem;text-transform:uppercase;letter-spacing:.05em}
+  td{padding:9px 14px;border-top:1px solid var(--border)}
+  tr:first-child td{border-top:none}
+  tr:hover td{background:#f9fafb}
+  .rank1 td{background:#eff6ff}
+  .dE{display:inline-block;padding:2px 7px;border-radius:999px;font-size:.78rem;font-weight:700}
+  .dE-good{background:#dcfce7;color:#14532d}
+  .dE-ok{background:#fef3c7;color:#92400e}
+  .dE-bad{background:#fee2e2;color:#991b1b}
+
+  .img-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-bottom:20px}
+  .img-panel{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
+  .img-panel .img-label{padding:9px 13px;font-size:.77rem;font-weight:700;color:var(--grey);background:#f9fafb;border-bottom:1px solid var(--border)}
+  .img-panel img{width:100%;display:block;object-fit:cover}
+
+  @media(max-width:650px){.metrics{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<header>
+  <span>🦷</span>
+  <h1>Dental Shade Matcher <span class="badge">PoC</span></h1>
+</header>
+
+<main>
+  <div class="steps">
+    <div class="step active" id="s1">1 · Upload</div>
+    <div class="step" id="s2">2 · Tooth region</div>
+    <div class="step" id="s3">3 · Calibration card</div>
+    <div class="step" id="s4">4 · Analyse</div>
+  </div>
+
+  <!-- Step 1 -->
+  <div class="upload-zone" id="dropZone">
+    <input type="file" id="fileInput" accept="image/jpeg,image/png"/>
+    <div class="upload-icon">📷</div>
+    <h2>Upload clinical photograph</h2>
+    <p>Include the Gavan.ai calibration card in the shot for accurate results</p>
+    <label class="upload-btn" for="fileInput">Choose image</label>
+  </div>
+
+  <!-- Steps 2 & 3 share this panel -->
+  <div id="selectorPanel">
+    <div id="selectorTitle"></div>
+    <div id="selectorHint"></div>
+    <div class="canvas-outer"><canvas id="imgCanvas"></canvas></div>
+    <div class="selector-btns">
+      <button class="btn btn-primary" id="confirmBtn" disabled>Confirm selection →</button>
+      <button class="btn btn-ghost"   id="clearBtn">Clear</button>
+      <button class="btn btn-ghost"   id="skipBtn">Skip (auto / none)</button>
+    </div>
+  </div>
+
+  <!-- Step 4 -->
+  <div class="settings" id="settingsBar" style="display:none">
+    <label for="glare">Glare L* threshold</label>
+    <input type="range" id="glare" min="80" max="100" value="95"
+           oninput="document.getElementById('glareVal').textContent=this.value"/>
+    <span class="sv" id="glareVal">95</span>
+    <button id="analyzeBtn">Analyse</button>
+  </div>
+
+  <div class="status" id="status"><span class="spinner"></span>Running colour calibration pipeline…</div>
+  <div id="results"></div>
+</main>
+
+<script>
+// ─── state ────────────────────────────────────────────────────────────────────
+let file = null, naturalW = 0, naturalH = 0;
+let toothRegion = null;   // {x0,y0,x1,y1} fractions or null
+let cardRegion  = null;   // {x0,y0,x1,y1} fractions or null
+let phase = 'tooth';      // 'tooth' | 'card'
+
+// ─── elements ─────────────────────────────────────────────────────────────────
+const dropZone     = document.getElementById('dropZone');
+const fileInput    = document.getElementById('fileInput');
+const selPanel     = document.getElementById('selectorPanel');
+const settingsBar  = document.getElementById('settingsBar');
+const analyzeBtn   = document.getElementById('analyzeBtn');
+const statusEl     = document.getElementById('status');
+const resultsEl    = document.getElementById('results');
+const canvas       = document.getElementById('imgCanvas');
+const ctx          = canvas.getContext('2d');
+const confirmBtn   = document.getElementById('confirmBtn');
+const clearBtn     = document.getElementById('clearBtn');
+const skipBtn      = document.getElementById('skipBtn');
+
+// ─── upload ───────────────────────────────────────────────────────────────────
+fileInput.addEventListener('change', e => { if (e.target.files[0]) pickFile(e.target.files[0]); });
+dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('drag'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag');
+  if (e.dataTransfer.files[0]) pickFile(e.dataTransfer.files[0]);
+});
+
+const img = new Image();
+function pickFile(f) {
+  file = f; toothRegion = null; cardRegion = null;
+  dropZone.querySelector('h2').textContent = f.name;
+  dropZone.querySelector('p').textContent  = (f.size/1024).toFixed(0) + ' KB';
+  img.onload = () => {
+    naturalW = img.naturalWidth;
+    naturalH = img.naturalHeight;
+    startPhase('tooth');
+  };
+  img.src = URL.createObjectURL(f);
+}
+
+// ─── phase management ─────────────────────────────────────────────────────────
+function startPhase(p) {
+  phase = p;
+  drag.rect = null;
+  confirmBtn.disabled = true;
+
+  if (p === 'tooth') {
+    setStepUI(2);
+    document.getElementById('selectorTitle').textContent = 'Step 2 — Draw the tooth region';
+    document.getElementById('selectorHint').textContent  =
+      'Click and drag a box over the teeth. Drag again to redraw.';
+    skipBtn.textContent = 'Skip — use auto-detect';
+  } else {
+    setStepUI(3);
+    document.getElementById('selectorTitle').textContent = 'Step 3 — Draw the calibration card region';
+    document.getElementById('selectorHint').textContent  =
+      'Drag a box around the full calibration card (include the colour swatches and barcode). Skip to attempt auto-detection.';
+    skipBtn.textContent = 'Skip — attempt auto-detection';
+  }
+
+  resizeCanvas();
+  redraw();
+  selPanel.style.display = 'block';
+  settingsBar.style.display = 'none';
+  selPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Size canvas to the image while respecting the container — in JS only, no CSS constraints
+function resizeCanvas() {
+  const maxW = selPanel.clientWidth - 36;   // panel padding
+  const maxH = 500;
+  let dW = Math.min(naturalW, maxW);
+  let dH = naturalH * (dW / naturalW);
+  if (dH > maxH) { dH = maxH; dW = naturalW * (dH / naturalH); }
+  dW = Math.round(dW); dH = Math.round(dH);
+  canvas.width  = dW;  canvas.style.width  = dW + 'px';
+  canvas.height = dH;  canvas.style.height = dH + 'px';
+}
+
+function redraw() {
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  // Show previously committed selection in grey (the other region)
+  if (phase === 'card' && toothRegion) drawRegionFraction(toothRegion, '#94a3b8', 'Tooth');
+  if (drag.rect) drawRectPx(drag.rect, var_blue, var_blue_fill);
+}
+
+const var_blue      = '#1a6ee6';
+const var_blue_fill = 'rgba(26,110,230,0.15)';
+
+function drawRegionFraction(r, stroke, label) {
+  const x = r.x0 * canvas.width,  y = r.y0 * canvas.height;
+  const w = (r.x1 - r.x0) * canvas.width, h = (r.y1 - r.y0) * canvas.height;
+  ctx.save();
+  ctx.strokeStyle = stroke; ctx.lineWidth = 1.5; ctx.setLineDash([5,3]);
+  ctx.strokeRect(x, y, w, h);
+  ctx.fillStyle = stroke; ctx.font = 'bold 11px sans-serif';
+  ctx.fillText(label, x + 4, y + 14);
+  ctx.restore();
+}
+
+function drawRectPx({x, y, w, h}, stroke, fill) {
+  ctx.save();
+  ctx.fillStyle = fill;   ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = stroke; ctx.lineWidth = 2; ctx.setLineDash([]);
+  ctx.strokeRect(x, y, w, h);
+  // corner handles
+  ctx.fillStyle = stroke;
+  [[x,y],[x+w,y],[x,y+h],[x+w,y+h]].forEach(([cx,cy]) => {
+    ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI*2); ctx.fill();
+  });
+  ctx.restore();
+}
+
+// ─── rubber-band drag (coords in canvas pixels, corrected for CSS scaling) ────
+const drag = { active: false, sx: 0, sy: 0, rect: null };
+
+function canvasPos(e) {
+  const r   = canvas.getBoundingClientRect();
+  const src = e.touches ? e.touches[0] : e;
+  // Scale: CSS display size → canvas internal resolution
+  const sx = canvas.width  / r.width;
+  const sy = canvas.height / r.height;
+  return {
+    x: (src.clientX - r.left) * sx,
+    y: (src.clientY - r.top)  * sy,
+  };
+}
+
+canvas.addEventListener('mousedown',  onStart);
+canvas.addEventListener('mousemove',  onMove);
+canvas.addEventListener('mouseup',    onEnd);
+canvas.addEventListener('mouseleave', onEnd);
+canvas.addEventListener('touchstart', onStart, { passive: false });
+canvas.addEventListener('touchmove',  onMove,  { passive: false });
+canvas.addEventListener('touchend',   onEnd);
+window.addEventListener('resize', () => { resizeCanvas(); redraw(); });
+
+function onStart(e) {
+  e.preventDefault();
+  const p = canvasPos(e);
+  drag.active = true; drag.sx = p.x; drag.sy = p.y; drag.rect = null;
+  confirmBtn.disabled = true;
+}
+function onMove(e) {
+  if (!drag.active) return;
+  e.preventDefault();
+  const p = canvasPos(e);
+  drag.rect = {
+    x: Math.min(drag.sx, p.x), y: Math.min(drag.sy, p.y),
+    w: Math.abs(p.x - drag.sx), h: Math.abs(p.y - drag.sy),
+  };
+  redraw();
+}
+function onEnd(e) {
+  if (!drag.active) return;
+  drag.active = false;
+  if (drag.rect && drag.rect.w > 8 && drag.rect.h > 8) confirmBtn.disabled = false;
+}
+
+// ─── buttons ──────────────────────────────────────────────────────────────────
+confirmBtn.addEventListener('click', () => {
+  if (!drag.rect) return;
+  const r = drag.rect;
+  const frac = {
+    x0: r.x / canvas.width,  y0: r.y / canvas.height,
+    x1: (r.x + r.w) / canvas.width, y1: (r.y + r.h) / canvas.height,
+  };
+  if (phase === 'tooth') { toothRegion = frac; startPhase('card'); }
+  else                   { cardRegion  = frac; showSettings(); }
+});
+
+clearBtn.addEventListener('click', () => {
+  drag.rect = null; confirmBtn.disabled = true; redraw();
+});
+
+skipBtn.addEventListener('click', () => {
+  if (phase === 'tooth') { toothRegion = null; startPhase('card'); }
+  else                   { cardRegion  = null; showSettings(); }
+});
+
+function showSettings() {
+  selPanel.style.display   = 'none';
+  settingsBar.style.display = 'flex';
+  setStepUI(4);
+}
+
+// ─── analyse ──────────────────────────────────────────────────────────────────
+analyzeBtn.addEventListener('click', async () => {
+  if (!file) return;
+  analyzeBtn.disabled = true;
+  statusEl.style.display  = 'block';
+  resultsEl.style.display = 'none';
+
+  const fd = new FormData();
+  fd.append('image', file);
+  fd.append('glare_threshold', document.getElementById('glare').value);
+  if (toothRegion) { Object.entries(toothRegion).forEach(([k,v]) => fd.append('tooth_'+k, v)); }
+  if (cardRegion)  { Object.entries(cardRegion).forEach( ([k,v]) => fd.append('card_'+k,  v)); }
+
+  try {
+    const resp = await fetch('/api/process', { method: 'POST', body: fd });
+    const data = await resp.json();
+    if (!resp.ok) { showError(data.error || 'Processing failed'); return; }
+    render(data);
+  } catch(err) {
+    showError('Network error: ' + err.message);
+  } finally {
+    statusEl.style.display  = 'none';
+    analyzeBtn.disabled = false;
+  }
+});
+
+// ─── helpers ──────────────────────────────────────────────────────────────────
+function setStepUI(n) {
+  [1,2,3,4].forEach(i => {
+    document.getElementById('s'+i).className =
+      'step' + (i < n ? ' done' : i===n ? ' active' : '');
+  });
+}
+function showError(msg) {
+  resultsEl.innerHTML = `<div class="alert alert-warn">⚠️ ${msg}</div>`;
+  resultsEl.style.display = 'block';
+}
+function dEChip(v) {
+  const c = v<2?'dE-good':v<4?'dE-ok':'dE-bad';
+  return `<span class="dE ${c}">ΔE₀₀ ${v.toFixed(2)}</span>`;
+}
+
+// ─── render ───────────────────────────────────────────────────────────────────
+function render(d) {
+  setStepUI(4);
+  const top5 = d.top5.map((r,i) =>
+    `<tr class="${i===0?'rank1':''}">
+      <td>${i===0?'🥇':i+1}</td><td><strong>${r.shade}</strong></td>
+      <td>${r.group}</td><td>${dEChip(r.dE00)}</td>
+    </tr>`).join('');
+
+  const imgs = d.images;
+  const panels = [
+    ['Original', imgs.original],
+    imgs.warped_card ? ['Calibration card', imgs.warped_card] : null,
+    ['Tooth (shading-normalised)', imgs.tooth_norm],
+    ['Glare overlay (red=excluded)', imgs.glare_overlay],
+  ].filter(Boolean).map(([lbl,b64]) =>
+    `<div class="img-panel"><div class="img-label">${lbl}</div>
+     <img src="data:image/jpeg;base64,${b64}" loading="lazy"/></div>`
+  ).join('');
+
+  resultsEl.innerHTML = `
+    ${d.card_detected
+      ? `<div class="alert alert-ok">✅ Calibration card active — RPCC matrix applied</div>`
+      : `<div class="alert alert-warn">⚠️ No calibration card — fallback sRGB→L*a*b* used</div>`}
+    ${d.manual_region ? `<div class="alert alert-info">📐 Manual tooth region: ${d.manual_region}</div>` : ''}
+    <div class="metrics">
+      <div class="metric hi"><div class="lbl">Best VITA Shade</div><div class="val">${d.best_shade}</div><div class="sub">${d.best_group}</div></div>
+      <div class="metric"><div class="lbl">ΔE₀₀</div><div class="val">${d.dE00.toFixed(2)}</div><div class="sub">lower = closer</div></div>
+      <div class="metric"><div class="lbl">Confidence</div><div class="val" style="font-size:1.15rem">${d.confidence}</div><div class="sub">${d.confidence_desc}</div></div>
+      <div class="metric"><div class="lbl">Valid pixels</div><div class="val">${d.valid_pixels_pct}%</div><div class="sub">non-glare</div></div>
+    </div>
+    <div class="lab-row">
+      <div class="lab-chip"><div class="l">L* Lightness</div><div class="v">${d.tooth_lab.L.toFixed(1)}</div></div>
+      <div class="lab-chip"><div class="l">a* Red–Green</div><div class="v">${d.tooth_lab.a.toFixed(2)}</div></div>
+      <div class="lab-chip"><div class="l">b* Blue–Yellow</div><div class="v">${d.tooth_lab.b.toFixed(2)}</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header">Top 5 VITA Classical matches</div>
+      <table><thead><tr><th>#</th><th>Shade</th><th>Group</th><th>Distance</th></tr></thead>
+      <tbody>${top5}</tbody></table>
+    </div>
+    <div class="img-grid">${panels}</div>`;
+  resultsEl.style.display = 'block';
+  resultsEl.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+</script>
+</body>
+</html>
